@@ -4,7 +4,7 @@ This is a small collection of scripts to write custom fdata files for Atelier Yu
 
 ## Credits
 
-This tool was written referencing fdata_dump by github.com/DeathChaos25 and the code from github.com/eterniti/eternity_common, and has thus benefited from the extensive research that went into creating those tools that was given away for free.  I am eternally grateful, thank you.  I also want to thank jmedia7 for information about modding KT games and fdata/rdb files.
+This tool was written referencing fdata_dump by github.com/DeathChaos25 and the code from github.com/eterniti/eternity_common, and has thus benefited from the extensive research that went into creating those tools that was given away for free.  I am eternally grateful, thank you.  I also want to thank jmedia7 for information about modding KT games and fdata/rdb files and github.com/mlleemiles who answered some questions I had about modding fdata files.
 
 ## Requirements:
 1. Python 3.9 or newer is required for use of this script.  It is free from the Microsoft Store, for Windows users.  For Linux users, please consult your distro.
