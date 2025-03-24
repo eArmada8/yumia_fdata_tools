@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     target_filehash = -1
     while target_filehash == -1:
-        raw_hash = input("What hash are you looking for? [Omit the '0x', type only the 8 hex digits] ")
+        raw_hash = input("What hash are you looking for? [e.g. 0x1234ABCD] ").lstrip("0x")
         try:
             target_filehash = int(raw_hash, 16)
         except:
