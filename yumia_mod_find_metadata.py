@@ -24,7 +24,10 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
             version, entry_size, string_size, file_size = struct.unpack("<I3Q", f.read(28))
             entry_type, file_hash, tkid, flags = struct.unpack("<4I", f.read(16))
             if not file_hash == target_filehash:
-                f.seek(start + entry_size + 4 - (entry_size % 4))
+                if not (entry_size % 4 == 0):
+                    f.seek(start + entry_size + 4 - (entry_size % 4))
+                else:
+                    f.seek(start + entry_size)
             else:
                 r_metadata = f.read(entry_size - 0x3D)
                 footer = struct.unpack("<H2IHI", f.read(16))

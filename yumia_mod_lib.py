@@ -113,12 +113,16 @@ def replace_files_in_rdb(rdb_file, idrk_struct):
             assert magic == b'IDRK'
             version, entry_size, string_size, file_size = struct.unpack("<I3Q", f.read(28))
             entry_type, file_hash, ktid, flags = struct.unpack("<4I", f.read(16))
+            if not (entry_size % 4 == 0):
+                aligned_size = entry_size + 4 - (entry_size % 4)
+            else:
+                aligned_size = entry_size
             if not file_hash in idrk_struct.keys():
                 f.seek(start)
-                new_rdb.extend(f.read(entry_size + 4 - (entry_size % 4)))
+                new_rdb.extend(f.read(aligned_size))
             else:
                 new_rdb.extend(idrk_struct[file_hash])
-                f.seek(start + entry_size + 4 - (entry_size % 4))
+                f.seek(start + aligned_size)
         open(rdb_file, 'wb').write(new_rdb)
 
 if __name__ == "__main__":
