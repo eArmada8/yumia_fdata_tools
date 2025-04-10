@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     fdata_filehash = -1
     while fdata_filehash == -1:
-        raw_hash = input("What fdata hash would you like to use? [Omit the '0x', type only the 8 hex digits] ")
+        raw_hash = input("What fdata hash would you like to use? [Omit the '0x', type only the 8 hex digits] ").lstrip("0x")
         try:
             fdata_filehash = int(raw_hash, 16)
         except:
