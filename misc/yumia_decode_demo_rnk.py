@@ -36,7 +36,7 @@ if __name__ == "__main__":
                 block_end = start + entry_size + 4 - (entry_size % 4)
             # Just getting first string
             f.seek(start + string_data_offsets[0])
-            name = f.read(string_length[0]).rstrip(b'\xef\xbc\xbd\x00').replace(b'\xef\xbc\x8d',b' - ').replace(b'\xef\xbc\xbb',b' - ')
+            name = f.read(string_length[0]).rstrip(b'\x00').replace(b'\xef\xbc\x8d',b'-').replace(b'\xef\xbc\xbb',b'[').replace(b'\xef\xbc\xbd',b']')
             names['0x{}'.format(str(hex(name_hash))[2:].zfill(8))] = name.decode()
             f.seek(block_end)
         sorted_dict_items = sorted(names.items(), key=lambda item: item[1])
