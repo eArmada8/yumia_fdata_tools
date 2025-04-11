@@ -80,48 +80,52 @@ def read_kidsobjdb (kidsobjdb_file, kidsobjdb_namefile = '', ask_for_namefile = 
         while f.tell() < eof:
             start = f.tell()
             magic = f.read(8)
-            assert magic == b'IDOK0000'
-            entry_size, prop_name, prop_typename, prop_count = struct.unpack("<4I", f.read(16))
-            entry = {'name_hash': prop_name, 'type_hash': prop_typename}
-            strings_avail = False
-            if prop_name in strings:
-                strings_avail = True
-                entry['name'] = strings[prop_name][0]
-                string_counter = 1
-            if strings_avail == True and string_counter < len(strings[prop_name]):
-                entry['type'] = strings[prop_name][string_counter]
-                string_counter += 1
-            pheaders = []
-            for i in range(prop_count):
-                pheader = {}
-                pheader['type'], pheader['num_values'], pheader['name_hash'] = struct.unpack("<3I", f.read(12))
-                pheaders.append(pheader)
-            pvalues = []
-            for pheader in pheaders:
-                pvalue = {'name_hash': pheader['name_hash'], 'type': pheader['type']}
-                if pheader['type'] in [0,1,2,3,4,5,8,10,12,13]:
-                    bin_type = {0:'b', 1:'B', 2:'h', 3:'H', 4:'i', 5:'I', 8:'f', 10:'4f', 12:'2f', 13:'3f'}[pheader['type']]
-                    bin_size = {0:1, 1:1, 2:2, 3:2, 4:4, 5:4, 8:4, 10:16, 12:8, 13: 12}[pheader['type']]
-                    values = []
-                    for _ in range(pheader['num_values']):
-                        value = {}
-                        val = struct.unpack("<{}".format(bin_type), f.read(bin_size))
-                        if pheader['type'] < 10:
-                            val = val[0]
-                        else:
-                            val = list(val)
-                        value['value'] = val
-                        if strings_avail == True and string_counter < len(strings[prop_name]):
-                            value['name'] = strings[prop_name][string_counter]
-                            string_counter += 1
-                        values.append(value)
-                    pvalue['value'] = values
-                else:
-                    problems.append(start)
-                    pass
-                pvalues.append(pvalue)
-            entry['values'] = pvalues
-            all_values.append(entry)
+            assert magic in [b'IDOK0000', b'RDOK0000']
+            if magic == b'IDOK0000':
+                entry_size, prop_name, prop_typename, prop_count = struct.unpack("<4I", f.read(16))
+                entry = {'name_hash': prop_name, 'type_hash': prop_typename}
+                strings_avail = False
+                if prop_name in strings:
+                    strings_avail = True
+                    entry['name'] = strings[prop_name][0]
+                    string_counter = 1
+                if strings_avail == True and string_counter < len(strings[prop_name]):
+                    entry['type'] = strings[prop_name][string_counter]
+                    string_counter += 1
+                pheaders = []
+                for i in range(prop_count):
+                    pheader = {}
+                    pheader['type'], pheader['num_values'], pheader['name_hash'] = struct.unpack("<3I", f.read(12))
+                    pheaders.append(pheader)
+                pvalues = []
+                for pheader in pheaders:
+                    pvalue = {'name_hash': pheader['name_hash'], 'type': pheader['type']}
+                    if pheader['type'] in [0,1,2,3,4,5,8,10,12,13]:
+                        bin_type = {0:'b', 1:'B', 2:'h', 3:'H', 4:'i', 5:'I', 8:'f', 10:'4f', 12:'2f', 13:'3f'}[pheader['type']]
+                        bin_size = {0:1, 1:1, 2:2, 3:2, 4:4, 5:4, 8:4, 10:16, 12:8, 13: 12}[pheader['type']]
+                        values = []
+                        for _ in range(pheader['num_values']):
+                            value = {}
+                            val = struct.unpack("<{}".format(bin_type), f.read(bin_size))
+                            if pheader['type'] < 10:
+                                val = val[0]
+                            else:
+                                val = list(val)
+                            value['value'] = val
+                            if strings_avail == True and string_counter < len(strings[prop_name]):
+                                value['name'] = strings[prop_name][string_counter]
+                                string_counter += 1
+                            values.append(value)
+                        pvalue['value'] = values
+                    else:
+                        problems.append(start)
+                        pass
+                    pvalues.append(pvalue)
+                entry['values'] = pvalues
+                all_values.append(entry)
+            else: #RDOK
+                entry_size, = struct.unpack("<I", f.read(4))
+                f.seek(start + entry_size) # Pass over RDOK, implementation of RDOK at some future date maybe
             while not (f.tell() % 4 == 0):
                 f.seek(1,1)
         return(all_values)
