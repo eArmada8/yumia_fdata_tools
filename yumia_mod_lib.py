@@ -4,7 +4,7 @@
 # GitHub eArmada8/yumia_fdata_tools
 
 try:
-    import json, base64, struct, shutil, os, sys
+    import json, base64, struct, shutil, zlib, os, sys
 except ModuleNotFoundError as e:
     print("Python module missing! {}".format(e.msg))
     input("Press Enter to abort.")
@@ -62,6 +62,26 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
                     fdata_index = fdata_index, fdata_offset = fdata_offset)
             f.seek(fdata_offset + entry_size)
         return(idrk_struct)
+
+def read_fdata_file (fdata_filename, offset):
+    with open(fdata_filename, 'rb') as f:
+        f.seek(offset)
+        magic = f.read(8)
+        assert magic == b'IDRK0000'
+        entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
+        entry_type, filehash, filetkid, flags = struct.unpack("<4I", f.read(16))
+        f_metadata = f.read(entry_size - cmp_size - 0x30)
+        if cmp_size == unc_size:
+            unc_data = f.read(unc_size)
+        else:
+            unc_data = bytearray(unc_size)
+            unc_offset = 0
+            while unc_offset < unc_size:
+                zsize, unk0 = struct.unpack("<HQ", f.read(10))
+                data_chunk = zlib.decompress(f.read(zsize))
+                unc_data[unc_offset:unc_offset+len(data_chunk)] = data_chunk
+                unc_offset += len(data_chunk)
+        return(unc_data, f_metadata, filehash, filetkid)
 
 def create_empty_fdata ():
     fdata = b'PDRK0000' + struct.pack("<2I", 0x10, 0x10)
