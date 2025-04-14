@@ -64,6 +64,15 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
         return(idrk_struct)
 
 def read_fdata_file (fdata_filename, offset):
+    #Thank you to github/eterniti for extensions
+    tkid_vals = { 0x0bd05b27: "mit" , 0x0d34474d: "srst", 0x17614af5: "g1mx", 0x1fdcaa40: "kidstask", 0x20a6a0bb: "kidsobjdb",\
+        0x27bc54b7: "rigbin", 0x4d0102ac: "g1em", 0x4f16d0ef: "kts", 0x5153729b: "mtl", 0x54738c76: "g1co", 0x5599aa51: "kscl",\
+        0x563bdef1: "g1m", 0x56d8deda: "sid", 0x5c3e543c: "swg", 0x6fa91671: "g1a", 0x757347e0: "bpo", 0x786dcd84: "g1n",\
+        0x79c724c2: "g1p", 0x7bcd279f: "g1s", 0x9cb3a4b6: "oidex", 0xa027e46b: "mov", 0xa8d88566: "g1cox", 0xafbec60c: "g1t",\
+        0xb097d41f: "g1e", 0xb0a14534: "sgcbin", 0xb1630f51: "kidsrender", 0xbbd39f2d: "srsa", 0xbbf9b49d: "grp", 0xbe144b78: "ktid",\
+        0xbf6b52c7: "name", 0xd7f47fb1: "efpl", 0xdbcb74a9: "oid", 0xf20de437: "texinfo", 0x1ab40ae8: "oid", 0x56efe45c: "grp",\
+        0xe6a3c3bb: "oidex", 0x8e39aa37: "ktid", 0xb340861a: "mtl", 0xed410290: "kts", 0x82945a44: "lsqtree", 0xf13845ef: "sclshape",\
+        0x5b2970fc: "ktf2", 0x32ac9403: "g1fpose", 0x133d2c3b: "sid", 0x2bcc0c02: "g1frani", 0x6dbd6ea6: "mit", 0x1a6300fd: "g1es" }
     with open(fdata_filename, 'rb') as f:
         f.seek(offset)
         magic = f.read(8)
@@ -81,7 +90,9 @@ def read_fdata_file (fdata_filename, offset):
                 data_chunk = zlib.decompress(f.read(zsize))
                 unc_data[unc_offset:unc_offset+len(data_chunk)] = data_chunk
                 unc_offset += len(data_chunk)
-        return(unc_data, f_metadata, filehash, filetkid)
+        filename = "0x{0}.{1}".format(str(hex(filehash))[2:].zfill(8),\
+            tkid_vals[filetkid] if filetkid in tkid_vals else hex(filetkid))
+        return(unc_data, f_metadata, filename)
 
 def create_empty_fdata ():
     fdata = b'PDRK0000' + struct.pack("<2I", 0x10, 0x10)
