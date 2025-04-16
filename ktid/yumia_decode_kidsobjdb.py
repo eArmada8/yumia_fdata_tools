@@ -156,7 +156,7 @@ if __name__ == "__main__":
         parser.add_argument('-n', '--namefile', help="Name of corresponding name file", action="store", type=ascii, default="")
         parser.add_argument('kidsobjdb_filename', help="Name of kidsobjdb file to export from (required).")
         args = parser.parse_args()
-        if os.path.exists(args.kidsobjdb_filename) and kidsobjdb_filename[-9:] == '.kidsobjdb':
+        if os.path.exists(args.kidsobjdb_filename) and args.kidsobjdb_filename[-9:] == '.kidsobjdb':
             process_kidsobjdb(args.kidsobjdb_filename, args.namefile, overwrite = args.overwrite)
     else:
         kidsobjdb_files = glob.glob('*.kidsobjdb')
