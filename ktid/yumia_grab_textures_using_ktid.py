@@ -14,7 +14,7 @@
 # GitHub eArmada8/yumia_fdata_tools
 
 try:
-    import json, shutil, base64, os, sys
+    import json, shutil, copy, base64, subprocess, os, sys
     from yumia_mod_find_metadata import *
     from yumia_decode_ktid_with_kidsobjdb import *
     from yumia_mod_lib import read_fdata_file
@@ -49,6 +49,7 @@ def get_yumia_root_folder ():
 
 def grab_ktid_referenced_files (ktid_filename, kidsobjdb_json_filename, overwrite = False):
     print("Processing {}...".format(ktid_filename))
+    f_overwrite = copy.deepcopy(overwrite)
     yumia_folder = get_yumia_root_folder()
     decoded_ktid_data = read_ktid_using_kidsobjdb_json (ktid_filename, kidsobjdb_json_filename)
     for ktid_val in decoded_ktid_data:
@@ -62,14 +63,20 @@ def grab_ktid_referenced_files (ktid_filename, kidsobjdb_json_filename, overwrit
                 'f_extradata': base64.b64encode(f_metadata).decode(),\
                 'r_extradata': base64.b64encode(r_metadata).decode()}
             meta_filename = '{0}_0x{1}.file_metadata.json'.format(str(ktid_val).zfill(3), str(hex(target_filehash))[2:].zfill(8))
-            if os.path.exists(meta_filename) and (overwrite == False):
+            if os.path.exists(meta_filename) and (f_overwrite == False):
                 if str(input("Targeted files already exist! Overwrite? (y/N) ")).lower()[0:1] == 'y':
-                    overwrite = True
-            if (overwrite == True) or not os.path.exists(meta_filename):
+                    f_overwrite = True
+            if (f_overwrite == True) or not os.path.exists(meta_filename):
                 with open(meta_filename, 'wb') as f:
                     f.write(json.dumps(metadata, indent = 4).encode())
                 fdata_filedata, _, filename = read_fdata_file(fdata_file, footer[1])
                 open('{0}_{1}'.format(str(ktid_val).zfill(3), filename), 'wb').write(fdata_filedata)
+    if os.path.exists('g1t_extract.exe'):
+        if len(glob.glob('*.dds')) > 0 and (overwrite == False):
+            if str(input("Texture files already exist! Overwrite? (y/N) ")).lower()[0:1] == 'y':
+                overwrite = True
+        if (overwrite == True) or not len(glob.glob('*.dds')) > 0:
+            subprocess.run(['g1t_extract.exe', '.'])
     return
 
 if __name__ == "__main__":
