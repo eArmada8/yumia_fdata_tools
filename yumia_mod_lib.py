@@ -38,6 +38,28 @@ def create_rdb_idrk (filesize, file_metadata, fdata_index = 0, fdata_offset = 0x
     idrk.extend(struct.pack("<H2IHI", 0x401, fdata_offset, 0x30 + extrasize + filesize, fdata_index, 0))
     return(idrk)
 
+def read_fdata_for_idrk_information (fdata_filename):
+    with open(fdata_filename, 'rb') as f:
+        f.seek(0,2)
+        eof = f.tell()
+        f.seek(0x10,0) # Skip header
+        idrk_entries = []
+        while f.tell() < eof:
+            fdata_offset = f.tell()
+            magic = f.read(8)
+            if not magic == b'IDRK0000':
+                while f.tell() < eof and not magic == b'IDRK0000':
+                    if f.tell() >= eof:
+                        break
+                    f.seek(-4,1)
+                    fdata_offset = f.tell()
+                    magic = f.read(8)
+            entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
+            entry_type, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
+            idrk_entries.append({'offset': fdata_offset, 'name_tkid': (name_hash, tkid_hash)})
+            f.seek(fdata_offset + entry_size)
+        return(idrk_entries)
+
 def read_fdata_for_rbd_insertion (mod_data, fdata_index):
     with open('0x{}.fdata'.format(str(hex(mod_data['fdata_hash']))[2:].zfill(8)), 'rb') as f:
         f.seek(0,2)
