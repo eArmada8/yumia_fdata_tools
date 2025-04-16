@@ -14,7 +14,7 @@
 # GitHub eArmada8/yumia_fdata_tools
 
 try:
-    import struct, base64, json, zlib, os, sys
+    import json, shutil, base64, os, sys
     from yumia_mod_find_metadata import *
     from yumia_decode_ktid_with_kidsobjdb import *
     from yumia_mod_lib import read_fdata_file
@@ -35,7 +35,7 @@ def get_yumia_root_folder ():
                 raw_path = os.path.dirname(raw_path)
             if os.path.exists(os.path.join(raw_path, 'root.rdb.original')):
                 yumia_folder = raw_path
-            elif os.path.exists(os.path.join(yumia_folder, 'root.rdb')):
+            elif os.path.exists(os.path.join(raw_path, 'root.rdb')):
                 yumia_folder = raw_path
                 shutil.copy2(os.path.join(yumia_folder, 'root.rdb'), os.path.join(yumia_folder, 'root.rdb.original'))
             else:
