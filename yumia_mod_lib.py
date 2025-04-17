@@ -42,7 +42,11 @@ def read_fdata_for_idrk_information (fdata_filename):
     with open(fdata_filename, 'rb') as f:
         f.seek(0,2)
         eof = f.tell()
-        f.seek(0x10,0) # Skip header
+        magic = f.read(8)
+        if magic == b'PDRK0000':
+            f.seek(0x10,0) # Skip header
+        else:
+            f.seek(0,0) # .file mode
         idrk_entries = []
         while f.tell() < eof:
             fdata_offset = f.tell()
