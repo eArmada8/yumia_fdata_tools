@@ -31,6 +31,9 @@ This script will take the mod files and the .yumiamod.json file, and write an .f
 ### yumia_mod_insert_into_rdb.py
 This script will take all the .yumiamod.json files and their corresponding .fdata files, and insert them into `root.rdb` and `root.rdx`.  This is intended to be run inside `/Atelier Yumia/Motor/`.  Place all your .yumiamod.json and .fdata files with this script in `/Atelier Yumia/Motor/` and run.  If no backup exists, it will write a backup (`root.rdb.original` and `root.rdx.original`).  It will always start from the original backups, so that duplicate mods will not be inserted when run repeatedly.  After running this script, `root.rdb` and `root.rdx` will be updated and the mods will have been inserted into the game.
 
+### yumia_mod_extract_files_from_fdata.py
+This script will unpack an .fdata file into its component files.  Needed to unpack the files created by yumia_mod_write_fdata_files.py.  This script can also unpack .file files (usually in the /data folder in Atelier Yumia).
+
 ## KTID Tools - How to use
 
 The KTID tools are meant to be used to find and subsequently mine data from `CharacterEditor.kidssingletondb.kidsobjdb`, a file used by Atelier Yumia and common to other KT games that use .ktid files to point g1m character models to g1t texture packs.  There are two strategies to finding this file.  Both start with identifying a character model (.g1m), by dumping all the .g1m files, filtering by size as character models tend to be larger than other objects, and looking for a character model (my [g1m exporter](https://github.com/eArmada8/gust_stuff) can be used but [Project G1M](https://github.com/Joschuka/Project-G1M) is faster for this application).
