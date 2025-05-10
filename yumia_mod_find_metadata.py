@@ -86,6 +86,13 @@ if __name__ == "__main__":
     else:
         os.chdir(os.path.abspath(os.path.dirname(__file__)))
 
+    if os.path.exists('root.rdb.original') and os.path.exists('root.rdx.original'):
+        print("Mods detected, will attempt to use original files.")
+        rdb_file = 'root.rdb.original'
+        rdx_file = 'root.rdx.original'
+    else:
+        rdb_file = 'root.rdb'
+        rdx_file = 'root.rdx'
     target_filehash = -1
     while target_filehash == -1:
         raw_hash = input("What hash are you looking for? [e.g. 0x1234ABCD] ").lstrip("0x")
@@ -93,4 +100,4 @@ if __name__ == "__main__":
             target_filehash = int(raw_hash, 16)
         except:
             print("Invalid entry!")
-    retrieve_file_metadata(target_filehash)
+    retrieve_file_metadata(target_filehash, rdb_file = rdb_file, rdx_file = rdx_file)
