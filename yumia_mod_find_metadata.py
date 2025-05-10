@@ -60,24 +60,27 @@ def find_file_metadata_in_fdata(fdata_file, offset):
         f_metadata = f.read(entry_size - cmp_size - 0x30)
         return(f_metadata)
 
-def retrieve_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
+def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
     tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
     if footer[0] == 1025:
         fdata_file = find_fdata_file (footer[3], rdx_file = rdx_file)
         f_metadata = find_file_metadata_in_fdata(fdata_file, footer[1])
-        metadata = {'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
+        return({'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
             'f_extradata': base64.b64encode(f_metadata).decode(),\
-            'r_extradata': base64.b64encode(r_metadata).decode()}
-        with open('{}.file_metadata.json'.format(str(hex(target_filehash))[2:].zfill(8)), 'wb') as f:
-            f.write(json.dumps(metadata, indent = 4).encode())
+            'r_extradata': base64.b64encode(r_metadata).decode()})
     elif footer[0] == 3073:
         fdata_file = os.path.join(file_folder, '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8)))
         f_metadata = find_file_metadata_in_fdata(fdata_file, 0)
-        metadata = {'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
+        return({'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
             'f_extradata': base64.b64encode(f_metadata).decode(),\
-            'r_extradata': base64.b64encode(r_metadata).decode()}
-        with open('{}.file_metadata.json'.format(str(hex(target_filehash))[2:].zfill(8)), 'wb') as f:
-            f.write(json.dumps(metadata, indent = 4).encode())
+            'r_extradata': base64.b64encode(r_metadata).decode()})
+    else:
+        return({})
+
+def retrieve_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
+    metadata = find_file_metadata(target_filehash, rdb_file = rdb_file, rdx_file = rdx_file, file_folder = file_folder)
+    with open('{}.file_metadata.json'.format(str(hex(target_filehash))[2:].zfill(8)), 'wb') as f:
+        f.write(json.dumps(metadata, indent = 4).encode())
 
 if __name__ == "__main__":
     # Set current directory
