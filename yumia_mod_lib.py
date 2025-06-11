@@ -120,7 +120,10 @@ def read_fdata_file (fdata_filename, offset):
             unc_data = bytearray(unc_size)
             unc_offset = 0
             while unc_offset < unc_size:
-                zsize, unk0 = struct.unpack("<HQ", f.read(10))
+                if flags & 0x100000: # FETH Mode
+                    zsize, = struct.unpack("<I", f.read(4))
+                else:
+                    zsize, unk0 = struct.unpack("<HQ", f.read(10))
                 data_chunk = zlib.decompress(f.read(zsize))
                 unc_data[unc_offset:unc_offset+len(data_chunk)] = data_chunk
                 unc_offset += len(data_chunk)
