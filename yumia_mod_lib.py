@@ -61,7 +61,10 @@ def read_fdata_for_idrk_information (fdata_filename):
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
             entry_type, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
             idrk_entries.append({'offset': fdata_offset, 'name_tkid': (name_hash, tkid_hash)})
-            f.seek(fdata_offset + entry_size)
+            entry_end = fdata_offset + entry_size
+            if entry_end % 0x10:
+                entry_end += (0x10 - entry_end % 0x10)
+            f.seek(entry_end)
         return(idrk_entries)
 
 def read_fdata_for_rbd_insertion (mod_data, fdata_index):
@@ -132,6 +135,8 @@ def append_to_fdata (fdata, filedata, file_metadata):
     else:
         prior_data = bytearray()
     fdata = b'PDRK0000' + struct.pack("<2I", 0x10, len(prior_data) + len(idrk) + 0x10) + prior_data + idrk
+    if len(fdata) % 0x10:
+        fdata += b'\x00' * (0x10 - len(fdata) % 0x10)
     return (fdata)
 
 def write_fdata (fdata, fdata_hash):
