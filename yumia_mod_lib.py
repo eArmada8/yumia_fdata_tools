@@ -89,7 +89,10 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
                 metadata = [x for x in mod_data['files'] if x['name_hash'] == name_hash][0]
                 idrk_struct[name_hash] = create_rdb_idrk(unc_size, metadata,\
                     fdata_index = fdata_index, fdata_offset = fdata_offset)
-            f.seek(fdata_offset + entry_size)
+            entry_end = fdata_offset + entry_size
+            if entry_end % 0x10:
+                entry_end += (0x10 - entry_end % 0x10)
+            f.seek(entry_end)
         return(idrk_struct)
 
 def read_fdata_file (fdata_filename, offset):
