@@ -40,9 +40,9 @@ def create_rdb_idrk (filesize, file_metadata, fdata_index = 0, fdata_offset = 0x
 
 def read_fdata_for_idrk_information (fdata_filename):
     with open(fdata_filename, 'rb') as f:
+        magic = f.read(8)
         f.seek(0,2)
         eof = f.tell()
-        magic = f.read(8)
         if magic == b'PDRK0000':
             f.seek(0x10,0) # Skip header
         else:
