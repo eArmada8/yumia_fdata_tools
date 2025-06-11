@@ -52,10 +52,11 @@ def read_fdata_for_idrk_information (fdata_filename):
             fdata_offset = f.tell()
             magic = f.read(8)
             if not magic == b'IDRK0000':
+                f.seek(-0x18,1) # Jump backwards in case this is an .fdata file from an older version of this tool
                 while f.tell() < eof and not magic == b'IDRK0000':
                     if f.tell() >= eof:
                         break
-                    f.seek(-4,1)
+                    f.seek(-7,1)
                     fdata_offset = f.tell()
                     magic = f.read(8)
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
@@ -77,10 +78,11 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
             fdata_offset = f.tell()
             magic = f.read(8)
             if not magic == b'IDRK0000':
+                f.seek(-0x18,1) # Jump backwards in case this is an .fdata file from an older version of this tool
                 while f.tell() < eof and not magic == b'IDRK0000':
                     if f.tell() >= eof:
                         break
-                    f.seek(-4,1)
+                    f.seek(-7,1)
                     fdata_offset = f.tell()
                     magic = f.read(8)
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
