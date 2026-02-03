@@ -20,20 +20,24 @@ def read_decode_mod_json (mod_json_filename):
 def create_fdata_idrk (filedata, file_metadata):
     filesize = len(filedata)
     extrasize = len(file_metadata['f_extradata'])
+    entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
+    entry_type = entry_type ^ 0x8 if entry_type & 0x8 else entry_type # Remove 0x8 (>8GB flag) if present
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
     idrk.extend(struct.pack("<3Q", 0x30 + extrasize + filesize, filesize, filesize))
-    idrk.extend(struct.pack("<4I", 0, file_metadata['name_hash'], file_metadata['tkid_hash'], 0))
+    idrk.extend(struct.pack("<4I", entry_type, file_metadata['name_hash'], file_metadata['tkid_hash'], 0))
     idrk.extend(file_metadata['f_extradata'])
     idrk.extend(filedata)
     return(idrk)
 
 def create_rdb_idrk (filesize, file_metadata, fdata_index = 0, fdata_offset = 0x10):
     extrasize = len(file_metadata['r_extradata'])
+    entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
+    entry_type = entry_type ^ 0x8 if entry_type & 0x8 else entry_type # Remove 0x8 (>8GB flag) if present
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
     idrk.extend(struct.pack("<3Q", 0x3D + extrasize, file_metadata['string_size'], filesize))
-    idrk.extend(struct.pack("<4I", 0, file_metadata['name_hash'], file_metadata['tkid_hash'], 0x20000))
+    idrk.extend(struct.pack("<4I", entry_type, file_metadata['name_hash'], file_metadata['tkid_hash'], 0x20000))
     idrk.extend(file_metadata['r_extradata'])
     idrk.extend(struct.pack("<H2IHI", 0x401, fdata_offset, 0x30 + extrasize + filesize, fdata_index, 0))
     return(idrk)
@@ -106,7 +110,8 @@ def read_fdata_file (fdata_filename, offset):
         0xb097d41f: "g1e", 0xb0a14534: "sgcbin", 0xb1630f51: "kidsrender", 0xbbd39f2d: "srsa", 0xbbf9b49d: "grp", 0xbe144b78: "ktid",\
         0xbf6b52c7: "name", 0xd7f47fb1: "efpl", 0xdbcb74a9: "oid", 0xf20de437: "texinfo", 0x1ab40ae8: "oid", 0x56efe45c: "grp",\
         0xe6a3c3bb: "oidex", 0x8e39aa37: "ktid", 0xb340861a: "mtl", 0xed410290: "kts", 0x82945a44: "lsqtree", 0xf13845ef: "sclshape",\
-        0x5b2970fc: "ktf2", 0x32ac9403: "g1fpose", 0x133d2c3b: "sid", 0x2bcc0c02: "g1frani", 0x6dbd6ea6: "mit", 0x1a6300fd: "g1es" }
+        0x5b2970fc: "ktf2", 0x32ac9403: "g1fpose", 0x133d2c3b: "sid", 0x2bcc0c02: "g1frani", 0x6dbd6ea6: "mit", 0x1a6300fd: "g1es",\
+        0xad57ebba: "g1t_new"}
     with open(fdata_filename, 'rb') as f:
         f.seek(offset)
         magic = f.read(8)

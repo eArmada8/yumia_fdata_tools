@@ -54,12 +54,13 @@ def grab_ktid_referenced_files (ktid_filename, kidsobjdb_json_filename, overwrit
     decoded_ktid_data = read_ktid_using_kidsobjdb_json (ktid_filename, kidsobjdb_json_filename)
     for ktid_val in decoded_ktid_data:
         target_filehash = int(decoded_ktid_data[ktid_val]['file_hash'], 16)
-        tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash,\
+        entry_type, tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash,\
             os.path.join(yumia_folder, 'root.rdb.original'))
         if footer[0] == 1025:
             fdata_file = os.path.join(yumia_folder, find_fdata_file(footer[3], rdx_file = os.path.join(yumia_folder, 'root.rdx.original')))
             f_metadata = find_file_metadata_in_fdata(fdata_file, footer[1])
-            metadata = {'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
+            metadata = {'name_hash': target_filehash, 'tkid_hash': tkid,\
+                'entry_type': entry_type, 'string_size': string_size,\
                 'f_extradata': base64.b64encode(f_metadata).decode(),\
                 'r_extradata': base64.b64encode(r_metadata).decode()}
             meta_filename = '{0}_0x{1}.file_metadata.json'.format(str(ktid_val).zfill(3), str(hex(target_filehash))[2:].zfill(8))

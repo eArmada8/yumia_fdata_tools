@@ -29,10 +29,15 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
                 else:
                     f.seek(start + entry_size)
             else:
-                r_metadata = f.read(entry_size - 0x3D)
-                footer = struct.unpack("<H2IHI", f.read(16))
+                r_metadata = f.read(entry_size - (0x41 if entry_type & 8 else 0x3D))
+                footer = [struct.unpack("<H", f.read(2))[0]]
+                if entry_type & 8:
+                    extra, = struct.unpack("<I", f.read(4))
+                footer.extend(list(struct.unpack("<2IH", f.read(10))))
+                if entry_type & 8:
+                    footer[1] += (extra & 0xFF) << 2**5
                 break
-    return(tkid, string_size, footer, r_metadata)
+    return(entry_type, tkid, string_size, footer, r_metadata)
 
 def find_fdata_file (fdata_index, rdx_file = 'root.rdx'):
     with open(rdx_file, 'rb') as f:
@@ -61,17 +66,19 @@ def find_file_metadata_in_fdata(fdata_file, offset):
         return(f_metadata)
 
 def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
-    tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
+    entry_type, tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
     if footer[0] == 1025:
         fdata_file = find_fdata_file (footer[3], rdx_file = rdx_file)
         f_metadata = find_file_metadata_in_fdata(fdata_file, footer[1])
-        return({'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
+        return({'name_hash': target_filehash, 'tkid_hash': tkid,\
+            'entry_type': entry_type, 'string_size': string_size,\
             'f_extradata': base64.b64encode(f_metadata).decode(),\
             'r_extradata': base64.b64encode(r_metadata).decode()})
     elif footer[0] == 3073:
         fdata_file = os.path.join(file_folder, '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8)))
         f_metadata = find_file_metadata_in_fdata(fdata_file, 0)
-        return({'name_hash': target_filehash, 'tkid_hash': tkid, 'string_size': string_size,\
+        return({'name_hash': target_filehash, 'tkid_hash': tkid,\
+            'entry_type': entry_type, 'string_size': string_size,\
             'f_extradata': base64.b64encode(f_metadata).decode(),\
             'r_extradata': base64.b64encode(r_metadata).decode()})
     else:
