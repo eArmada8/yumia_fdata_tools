@@ -21,7 +21,6 @@ def create_fdata_idrk (filedata, file_metadata):
     filesize = len(filedata)
     extrasize = len(file_metadata['f_extradata'])
     entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
-    entry_type = entry_type ^ 0x8 if entry_type & 0x8 else entry_type # Remove 0x8 (>8GB flag) if present
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
     idrk.extend(struct.pack("<3Q", 0x30 + extrasize + filesize, filesize, filesize))
@@ -33,10 +32,9 @@ def create_fdata_idrk (filedata, file_metadata):
 def create_rdb_idrk (filesize, file_metadata, fdata_index = 0, fdata_offset = 0x10):
     extrasize = len(file_metadata['r_extradata'])
     entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
-    entry_type = entry_type ^ 0x8 if entry_type & 0x8 else entry_type # Remove 0x8 (>8GB flag) if present
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
-    idrk.extend(struct.pack("<3Q", 0x3D + extrasize, file_metadata['string_size'], filesize))
+    idrk.extend(struct.pack("<3Q", 0x3D + extrasize, 0xD, filesize)) # No support for >8GB fdata at this time
     idrk.extend(struct.pack("<4I", entry_type, file_metadata['name_hash'], file_metadata['tkid_hash'], 0x20000))
     idrk.extend(file_metadata['r_extradata'])
     idrk.extend(struct.pack("<H2IHI", 0x401, fdata_offset, 0x30 + extrasize + filesize, fdata_index, 0))

@@ -12,6 +12,7 @@ except ModuleNotFoundError as e:
     raise   
 
 def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
+    idrk_header_size = 0x30
     r_metadata = b''
     with open(rdb_file, 'rb') as f:
         f.seek(0,2)
@@ -29,12 +30,12 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
                 else:
                     f.seek(start + entry_size)
             else:
-                r_metadata = f.read(entry_size - (0x41 if entry_type & 8 else 0x3D))
+                r_metadata = f.read(entry_size - (string_size + idrk_header_size))
                 footer = [struct.unpack("<H", f.read(2))[0]]
-                if entry_type & 8:
+                if string_size == 0x11:
                     extra, = struct.unpack("<I", f.read(4))
                 footer.extend(list(struct.unpack("<2IH", f.read(10))))
-                if entry_type & 8:
+                if string_size == 0x11:
                     footer[1] += (extra & 0xFF) << 2**5
                 break
     return(entry_type, tkid, string_size, footer, r_metadata)
