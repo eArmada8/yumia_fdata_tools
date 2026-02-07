@@ -21,14 +21,18 @@ def extract_files_from_fdata (fdata_filename, overwrite = False):
         mod_filenames = {(x['name_hash'],x['tkid_hash']):x['filename'] for x in mod_data['files']}
     fdata_files = read_fdata_for_idrk_information(fdata_filename)
     for i in range(len(fdata_files)):
-        filedata, _, filename = read_fdata_file(fdata_filename, fdata_files[i]['offset'])
-        if fdata_files[i]['name_tkid'] in mod_filenames:
-            filename = mod_filenames[fdata_files[i]['name_tkid']]
-        if os.path.exists(filename) and (overwrite == False):
-            if str(input("Files to be extracted from {} already exist! Overwrite? (y/N) ".format(fdata_filename))).lower()[0:1] == 'y':
-                overwrite = True
-        if (overwrite == True) or not os.path.exists(filename):
-            open(filename, 'wb').write(filedata)
+        try:
+            filedata, _, filename = read_fdata_file(fdata_filename, fdata_files[i]['offset'])
+            if fdata_files[i]['name_tkid'] in mod_filenames:
+                filename = mod_filenames[fdata_files[i]['name_tkid']]
+            if os.path.exists(filename) and (overwrite == False):
+                if str(input("Files to be extracted from {} already exist! Overwrite? (y/N) ".format(fdata_filename))).lower()[0:1] == 'y':
+                    overwrite = True
+            if (overwrite == True) or not os.path.exists(filename):
+                open(filename, 'wb').write(filedata)
+        except zlib.error as e:
+            print("Extraction of {} in {} failed! Skipping...".format(fdata_files[i]['name_tkid'], fdata_filename))
+            print("ZLib error: {}".format(str(e)))
     return
 
 def extract_files_from_file (file_filename, overwrite = False):
@@ -37,14 +41,18 @@ def extract_files_from_file (file_filename, overwrite = False):
         mod_data = read_decode_mod_json(file_filename.split('.file')[0] + '.yumiamod.json')
         mod_filenames = {(x['name_hash'],x['tkid_hash']):x['filename'] for x in mod_data['files']}
     file_idrkdata = read_fdata_for_idrk_information(file_filename)
-    filedata, _, filename = read_fdata_file(file_filename, 0)
-    if file_idrkdata[0]['name_tkid'] in mod_filenames:
-        filename = mod_filenames[file_idrkdata[0]['name_tkid']]
-    if os.path.exists(filename) and (overwrite == False):
-        if str(input("{} already exists! Overwrite? (y/N) ".format(filename))).lower()[0:1] == 'y':
-            overwrite = True
-    if (overwrite == True) or not os.path.exists(filename):
-        open(filename, 'wb').write(filedata)
+    try:
+        filedata, _, filename = read_fdata_file(file_filename, 0)
+        if file_idrkdata[0]['name_tkid'] in mod_filenames:
+            filename = mod_filenames[file_idrkdata[0]['name_tkid']]
+        if os.path.exists(filename) and (overwrite == False):
+            if str(input("{} already exists! Overwrite? (y/N) ".format(filename))).lower()[0:1] == 'y':
+                overwrite = True
+        if (overwrite == True) or not os.path.exists(filename):
+            open(filename, 'wb').write(filedata)
+    except zlib.error as e:
+        print("Extraction of {} failed! Skipping...".format(file_filename))
+        print("ZLib error: {}".format(str(e)))
     return
 
 if __name__ == "__main__":
