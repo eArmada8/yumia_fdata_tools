@@ -37,11 +37,12 @@ def get_yumia_root_folder ():
                 yumia_folder = raw_path
             elif os.path.exists(os.path.join(raw_path, 'root.rdb')):
                 yumia_folder = raw_path
-                shutil.copy2(os.path.join(yumia_folder, 'root.rdb'), os.path.join(yumia_folder, 'root.rdb.original'))
             else:
                 print("Invalid path!")
         else:
             print("Invalid entry!")
+    if not os.path.exists(os.path.join(yumia_folder, 'root.rdb.original')) and os.path.exists(os.path.join(yumia_folder, 'root.rdb')):
+        shutil.copy2(os.path.join(yumia_folder, 'root.rdb'), os.path.join(yumia_folder, 'root.rdb.original'))
     if not os.path.exists(os.path.join(yumia_folder, 'root.rdx.original')) and os.path.exists(os.path.join(yumia_folder, 'root.rdx')):
         shutil.copy2(os.path.join(yumia_folder, 'root.rdx'), os.path.join(yumia_folder, 'root.rdx.original'))
     open('yumia_folder.json','wb').write(json.dumps([yumia_folder], indent=4).encode())
