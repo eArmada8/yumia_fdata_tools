@@ -31,6 +31,8 @@ This script will take the mod files and the .yumiamod.json file, and write an .f
 ### yumia_mod_insert_into_rdb.py
 This script will take all the .yumiamod.json files and their corresponding .fdata files, and insert them into `root.rdb` and `root.rdx`.  This is intended to be run inside `/Atelier Yumia/Motor/`.  Place all your .yumiamod.json and .fdata files with this script in `/Atelier Yumia/Motor/` and run.  If no backup exists, it will write a backup (`root.rdb.original` and `root.rdx.original`).  It will always start from the original backups, so that duplicate mods will not be inserted when run repeatedly.  After running this script, `root.rdb` and `root.rdx` will be updated and the mods will have been inserted into the game.
 
+Additionally, the script will write hash signatures of the *modded* `root.rdb` and `root.rdx` files so that it can use them in future executions to detect game updates.  If the game is updated, the script will detect that the files no longer match their signatures, and will prompt the user to replace `root.rdb.original` and `root.rdx.original` with the new updated versions.
+
 ### yumia_mod_extract_files_from_fdata.py
 This script will unpack an .fdata file into its component files.  Needed to unpack the files created by yumia_mod_write_fdata_files.py.  This script can also unpack .file files (usually in the /data folder in Atelier Yumia).
 
