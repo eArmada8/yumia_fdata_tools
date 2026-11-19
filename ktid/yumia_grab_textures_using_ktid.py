@@ -14,7 +14,7 @@
 # GitHub eArmada8/yumia_fdata_tools
 
 try:
-    import json, shutil, copy, base64, subprocess, os, sys
+    import json, shutil, copy, base64, subprocess, glob, os, sys
     from yumia_mod_find_metadata import *
     from yumia_decode_ktid_with_kidsobjdb import *
     from yumia_mod_lib import read_fdata_file
@@ -55,13 +55,17 @@ def grab_ktid_referenced_files (ktid_filename, kidsobjdb_json_filename, overwrit
     decoded_ktid_data = read_ktid_using_kidsobjdb_json (ktid_filename, kidsobjdb_json_filename)
     for ktid_val in decoded_ktid_data:
         target_filehash = int(decoded_ktid_data[ktid_val]['file_hash'], 16)
-        entry_type, tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash,\
-            os.path.join(yumia_folder, 'root.rdb.original'))
-        if footer[0] == 1025:
-            fdata_file = os.path.join(yumia_folder, find_fdata_file(footer[3], rdx_file = os.path.join(yumia_folder, 'root.rdx.original')))
-            f_metadata = find_file_metadata_in_fdata(fdata_file, footer[1])
+        param_data_size, tkid, payload_size, location_record, r_metadata, file_folder = find_file_metadata_in_rdb(
+            target_filehash, os.path.join(yumia_folder, 'root.rdb.original'))
+        if location_record['skip'] == False and location_record['kind'] == 1 and location_record['loose_file'] == False:
+            fdata_file = os.path.join(yumia_folder, find_fdata_file(location_record['rdx_index'],
+                rdx_file = os.path.join(yumia_folder, 'root.rdx.original')))
+            if not os.path.isfile(fdata_file):
+                print("Skipping {}, container {} not found.".format(hex(target_filehash), fdata_file))
+                continue
+            fdata_filedata, f_metadata, filename = read_fdata_file(fdata_file, location_record['offset'])
             metadata = {'name_hash': target_filehash, 'tkid_hash': tkid,\
-                'entry_type': entry_type, 'string_size': string_size,\
+                'param_data_size': param_data_size, 'payload_size': payload_size,\
                 'f_extradata': base64.b64encode(f_metadata).decode(),\
                 'r_extradata': base64.b64encode(r_metadata).decode()}
             meta_filename = '{0}_0x{1}.file_metadata.json'.format(str(ktid_val).zfill(3), str(hex(target_filehash))[2:].zfill(8))
@@ -71,7 +75,7 @@ def grab_ktid_referenced_files (ktid_filename, kidsobjdb_json_filename, overwrit
             if (f_overwrite == True) or not os.path.exists(meta_filename):
                 with open(meta_filename, 'wb') as f:
                     f.write(json.dumps(metadata, indent = 4).encode())
-                fdata_filedata, _, filename = read_fdata_file(fdata_file, footer[1])
+                
                 open('{0}_{1}'.format(str(ktid_val).zfill(3), filename), 'wb').write(fdata_filedata)
     if os.path.exists('g1t_extract.exe'):
         if len(glob.glob('*.dds')) > 0 and (overwrite == False):
@@ -97,7 +101,7 @@ if __name__ == "__main__":
         parser.add_argument('ktid_filename', help="Name of ktid file to read from (required).")
         args = parser.parse_args()
         if os.path.exists(args.json_filename) and os.path.exists(args.ktid_filename):
-            process_ktid(args.ktid_filename, args.json_filename, overwrite = args.overwrite)
+            grab_ktid_referenced_files(args.ktid_filename, args.json_filename, overwrite = args.overwrite)
     else:
         if os.path.exists('CharacterEditor.kidssingletondb.kidsobjdb.json'):
             db_name = 'CharacterEditor.kidssingletondb.kidsobjdb.json'
