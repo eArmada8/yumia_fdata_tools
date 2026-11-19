@@ -8,7 +8,7 @@ This tool was written referencing fdata_dump by github.com/DeathChaos25 and the 
 
 ## AI Disclosure
 
-I used AI (Claude, attached to ghidra) as a debugger / decompiler to help me debug persistent errors, and I wrote the code to fix those errors.
+I used AI (Claude, attached to ghidra) as a debugger / decompiler to help me debug persistent errors, and I wrote the code to fix those errors.  Certain math functions (e.g cryptography, checksum calculations) were written by Claude AI as well.
 
 ## Requirements:
 1. Python 3.11 or newer is required for use of this script.  It is free from the Microsoft Store, for Windows users.  For Linux users, please consult your distro.

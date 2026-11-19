@@ -117,6 +117,26 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
         return(idrk_struct)
 
 def read_fdata_file (fdata_filename, offset):
+    # decrypt_type3_payload() written by Claude AI
+    def decrypt_type3_payload (payload, name_hash, tkid_hash, unc_size):
+        try:
+            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        except ModuleNotFoundError as e:
+            print("Python module missing! {}".format(e.msg))
+            print("Cannot decrypt file {}, skipping.".format(hex(name_hash)))
+            return(b'')
+        if len(payload) < 32 or (len(payload) - 16) % 16:
+            return(b'')
+        iv = payload[:16]
+        iv_dw1, iv_dw2 = struct.unpack_from("<2I", iv, 4)
+        key = struct.pack("<4I", iv_dw2 ^ 0x25544EF3, name_hash ^ 0x5FAD6629,
+                                 tkid_hash ^ 0xCF99643A, iv_dw1 ^ 0xBA2F39D5)
+        dec = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
+        data = dec.update(payload[16:]) + dec.finalize()
+        pad = data[-1]
+        if not (1 <= pad <= 16 and data[-pad:] == bytes([pad]) * pad and len(data) - pad == unc_size):
+            return(b'') # Return b'' if the decoding failed - this might be byte flipped zlib chunked format instead ??
+        return(data[:-pad])
     #Thank you to github/eterniti for extensions
     tkid_vals = { 0x0bd05b27: "mit" , 0x0d34474d: "srst", 0x17614af5: "g1mx", 0x1fdcaa40: "kidstask", 0x20a6a0bb: "kidsobjdb",\
         0x27bc54b7: "rigbin", 0x4d0102ac: "g1em", 0x4f16d0ef: "kts", 0x5153729b: "mtl", 0x54738c76: "g1co", 0x5599aa51: "kscl",\
@@ -139,13 +159,15 @@ def read_fdata_file (fdata_filename, offset):
             tkid_vals[filetkid] if filetkid in tkid_vals else hex(filetkid))
         if cmp_flag == 0:
             unc_data = f.read(unc_size)
+        elif cmp_flag == 3: # Encryption: 16-byte IV followed by AES-128-CBC ciphertext with PKCS7 padding
+            unc_data = decrypt_type3_payload (f.read(cmp_size), filehash, filetkid, unc_size)
         else:
             unc_data = bytearray(unc_size)
             unc_offset = 0
             while unc_offset < unc_size:
                 if cmp_flag == 1: # FETH Mode
                     zsize, = struct.unpack("<I", f.read(4))
-                elif cmp_flag == 4: # Standard Mode (e.g. Atelier Yumia, Nioh 3, etc)
+                elif cmp_flag == 4: # Standard Mode (e.g. Atelier Yumia, etc)
                     zsize, unk0 = struct.unpack("<HQ", f.read(10))
                 else:
                     print("Unknown compression type: {}  Please report!".format(cmp_flag))
