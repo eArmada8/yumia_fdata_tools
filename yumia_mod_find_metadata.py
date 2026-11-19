@@ -12,8 +12,16 @@ except ModuleNotFoundError as e:
     raise   
 
 def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
+    def read_variable_size_int(f):
+        dword1, = struct.unpack("<I", f.read(4))
+        if dword1 & 0x80000000:
+            dword2, = struct.unpack("<I", f.read(4))
+            return ((dword1 & 0x7FFFFFFF) << 32) + dword2
+        else:
+            return dword1
     idrk_header_size = 0x30
     r_metadata = b''
+    location_record = {'skip': True}
     with open(rdb_file, 'rb') as f:
         f.seek(0,2)
         eof = f.tell()
@@ -22,23 +30,31 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
             start = f.tell()
             magic = f.read(4)
             assert magic == b'IDRK'
-            version, entry_size, string_size, file_size = struct.unpack("<I3Q", f.read(28))
-            entry_type, file_hash, tkid, flags = struct.unpack("<4I", f.read(16))
+            version, entry_size, payload_size, file_size = struct.unpack("<I3Q", f.read(28))
+            param_data_size, file_hash, tkid, flags = struct.unpack("<4I", f.read(16))
             if not file_hash == target_filehash:
                 if not (entry_size % 4 == 0):
                     f.seek(start + entry_size + 4 - (entry_size % 4))
                 else:
                     f.seek(start + entry_size)
             else:
-                r_metadata = f.read(entry_size - (string_size + idrk_header_size))
-                footer = [struct.unpack("<H", f.read(2))[0]]
-                if string_size == 0x11:
-                    extra, = struct.unpack("<I", f.read(4))
-                footer.extend(list(struct.unpack("<2IH", f.read(10))))
-                if string_size == 0x11:
-                    footer[1] += (extra & 0xFF) << 2**5
+                r_metadata = f.read(entry_size - (payload_size + idrk_header_size))
+                if ((flags >> 16) & 0xF == 2) and (payload_size >= 13):
+                    location_record['kind'], location_record['flags'] = struct.unpack("<2B", f.read(2))
+                    bits_set = [location_record['flags'] & 1, location_record['flags'] & 2,
+                        location_record['flags'] & 4, location_record['flags'] & 8]
+                    location_record['offset'] = read_variable_size_int(f)
+                    location_record['size'] = read_variable_size_int(f)
+                    if bits_set[0]:
+                        location_record['container'], = struct.unpack("<H", f.read(2))
+                    if bits_set[1]:
+                        location_record['subcontainer'], = struct.unpack("<B", f.read(1))
+                    if bits_set[2]:
+                        location_record['rdx_index'], = struct.unpack("<H", f.read(2))
+                    location_record['loose_file'] = True if bits_set[3] else False
+                    location_record['skip'] = False
                 break
-    return(entry_type, tkid, string_size, footer, r_metadata)
+    return(param_data_size, tkid, payload_size, location_record, r_metadata)
 
 def find_fdata_file (fdata_index, rdx_file = 'root.rdx'):
     with open(rdx_file, 'rb') as f:
@@ -47,7 +63,7 @@ def find_fdata_file (fdata_index, rdx_file = 'root.rdx'):
         f.seek(0)
         success = False
         while f.tell() < eof:
-            marker, ff, fdata_hash = struct.unpack("<2hI", f.read(8))
+            marker, root_folder, sub_folder, fdata_hash = struct.unpack("<H2BI", f.read(8))
             if marker == fdata_index:
                 success = True
                 break
@@ -62,26 +78,30 @@ def find_file_metadata_in_fdata(fdata_file, offset):
         magic = f.read(8)
         assert magic == b'IDRK0000'
         entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
-        entry_type, filehash, filetkid, flags = struct.unpack("<4I", f.read(16))
+        param_data_size, filehash, filetkid, flags = struct.unpack("<4I", f.read(16))
         f_metadata = f.read(entry_size - cmp_size - 0x30)
         return(f_metadata)
 
 def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
-    entry_type, tkid, string_size, footer, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
-    if footer[0] == 1025:
-        fdata_file = find_fdata_file (footer[3], rdx_file = rdx_file)
-        f_metadata = find_file_metadata_in_fdata(fdata_file, footer[1])
-        return({'name_hash': target_filehash, 'tkid_hash': tkid,\
-            'entry_type': entry_type, 'string_size': string_size,\
-            'f_extradata': base64.b64encode(f_metadata).decode(),\
-            'r_extradata': base64.b64encode(r_metadata).decode()})
-    elif footer[0] == 3073:
-        fdata_file = os.path.join(file_folder, '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8)))
-        f_metadata = find_file_metadata_in_fdata(fdata_file, 0)
-        return({'name_hash': target_filehash, 'tkid_hash': tkid,\
-            'entry_type': entry_type, 'string_size': string_size,\
-            'f_extradata': base64.b64encode(f_metadata).decode(),\
-            'r_extradata': base64.b64encode(r_metadata).decode()})
+    param_data_size, tkid, payload_size, location_record, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
+    if location_record['skip'] == False and location_record['kind'] == 1:
+        if location_record['loose_file'] == True:
+            fdata_file = os.path.join(file_folder, '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8)))
+            f_metadata = find_file_metadata_in_fdata(fdata_file, 0)
+            return({'name_hash': target_filehash, 'tkid_hash': tkid,\
+                'param_data_size': param_data_size, 'payload_size': payload_size,\
+                'f_extradata': base64.b64encode(f_metadata).decode(),\
+                'r_extradata': base64.b64encode(r_metadata).decode()})
+        elif 'rdx_index' in location_record:
+            fdata_file = find_fdata_file (location_record['rdx_index'], rdx_file = rdx_file)
+            f_metadata = find_file_metadata_in_fdata(fdata_file, location_record['offset'])
+            return({'name_hash': target_filehash, 'tkid_hash': tkid,\
+                'param_data_size': param_data_size, 'payload_size': payload_size,\
+                'f_extradata': base64.b64encode(f_metadata).decode(),\
+                'r_extradata': base64.b64encode(r_metadata).decode()})
+        else:
+            print("Warning! Skipping file, unknown locator format: {}".format(location_record))
+            return({})
     else:
         return({})
 
@@ -106,7 +126,7 @@ if __name__ == "__main__":
         rdx_file = 'root.rdx'
     target_filehash = -1
     while target_filehash == -1:
-        raw_hash = input("What hash are you looking for? [e.g. 0x1234ABCD] ").lstrip("0x")
+        raw_hash = input("What hash are you looking for? [e.g. 0x1234ABCD] ").strip()
         try:
             target_filehash = int(raw_hash, 16)
         except:

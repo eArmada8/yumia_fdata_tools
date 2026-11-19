@@ -19,25 +19,42 @@ def read_decode_mod_json (mod_json_filename):
 
 def create_fdata_idrk (filedata, file_metadata):
     filesize = len(filedata)
-    extrasize = len(file_metadata['f_extradata'])
-    entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
+    param_block_size = len(file_metadata['f_extradata'])
+    payload = file_metadata['f_extradata'][4:] + filedata
+    param_count, = struct.unpack("<I", file_metadata['f_extradata'][4:8])
+    param_data_size = param_block_size - (12 * param_count + 8)
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
-    idrk.extend(struct.pack("<3Q", 0x30 + extrasize + filesize, filesize, filesize))
-    idrk.extend(struct.pack("<4I", entry_type, file_metadata['name_hash'], file_metadata['tkid_hash'], 0))
-    idrk.extend(file_metadata['f_extradata'])
-    idrk.extend(filedata)
+    idrk.extend(struct.pack("<3Q", 0x30 + param_block_size + filesize, filesize, filesize))
+    idrk.extend(struct.pack("<4I", param_data_size, file_metadata['name_hash'], file_metadata['tkid_hash'], 0))
+    idrk.extend(struct.pack("<I", zlib.crc32(filedata)))
+    idrk.extend(payload)
     return(idrk)
 
-def create_rdb_idrk (filesize, file_metadata, fdata_index = 0, fdata_offset = 0x10):
-    extrasize = len(file_metadata['r_extradata'])
-    entry_type = file_metadata['entry_type'] if 'entry_type' in file_metadata else 0
+def create_rdb_idrk (unc_size, entry_size, file_metadata, flags, fdata_index = 0, fdata_offset = 0x10):
+    def write_variable_size_int (int_):
+        assert int_ < (1 << 63)
+        if int_ < (1 << 31):
+            return struct.pack("<I", int_)
+        else:
+            return struct.pack("<2I", (int_ >> 32) | 0x80000000, int_ & 0xFFFFFFFF)
+    param_block_size = len(file_metadata['r_extradata'])
+    param_count, = struct.unpack("<I", file_metadata['r_extradata'][4:8])
+    param_data_size = param_block_size - (12 * param_count + 8)
+    new_flags = 0x20000 | (flags & 0x03F00000)
+    location = bytearray()
+    location.extend(struct.pack("<2B", 1, 4))
+    location.extend(write_variable_size_int(fdata_offset))
+    location.extend(write_variable_size_int(entry_size))
+    location.extend(struct.pack("<HB", fdata_index, 0))
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
-    idrk.extend(struct.pack("<3Q", 0x3D + extrasize, 0xD, filesize)) # No support for >8GB fdata at this time
-    idrk.extend(struct.pack("<4I", entry_type, file_metadata['name_hash'], file_metadata['tkid_hash'], 0x20000))
+    idrk.extend(struct.pack("<3Q", 0x30 + param_block_size + len(location), len(location), unc_size))
+    idrk.extend(struct.pack("<4I", param_data_size, file_metadata['name_hash'], file_metadata['tkid_hash'], new_flags))
     idrk.extend(file_metadata['r_extradata'])
-    idrk.extend(struct.pack("<H2IHI", 0x401, fdata_offset, 0x30 + extrasize + filesize, fdata_index, 0))
+    idrk.extend(location)
+    while len(idrk) % 4 > 0:
+        idrk.extend(b'\x00')
     return(idrk)
 
 def read_fdata_for_idrk_information (fdata_filename):
@@ -62,7 +79,7 @@ def read_fdata_for_idrk_information (fdata_filename):
                     fdata_offset = f.tell()
                     magic = f.read(8)
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
-            entry_type, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
+            param_data_size, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
             idrk_entries.append({'offset': fdata_offset, 'name_tkid': (name_hash, tkid_hash)})
             entry_end = fdata_offset + entry_size
             if entry_end % 0x10:
@@ -88,11 +105,11 @@ def read_fdata_for_rbd_insertion (mod_data, fdata_index):
                     fdata_offset = f.tell()
                     magic = f.read(8)
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
-            entry_type, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
+            param_data_size, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
             if name_hash in [x['name_hash'] for x in mod_data['files']]:
                 metadata = [x for x in mod_data['files'] if x['name_hash'] == name_hash][0]
-                idrk_struct[name_hash] = create_rdb_idrk(unc_size, metadata,\
-                    fdata_index = fdata_index, fdata_offset = fdata_offset)
+                idrk_struct[name_hash] = create_rdb_idrk(unc_size, entry_size, metadata,\
+                    flags, fdata_index = fdata_index, fdata_offset = fdata_offset)
             entry_end = fdata_offset + entry_size
             if entry_end % 0x10:
                 entry_end += (0x10 - entry_end % 0x10)
@@ -115,23 +132,28 @@ def read_fdata_file (fdata_filename, offset):
         magic = f.read(8)
         assert magic == b'IDRK0000'
         entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
-        entry_type, filehash, filetkid, flags = struct.unpack("<4I", f.read(16))
+        param_data_size, filehash, filetkid, flags = struct.unpack("<4I", f.read(16))
         f_metadata = f.read(entry_size - cmp_size - 0x30)
-        if cmp_size == unc_size:
+        cmp_flag = (flags >> 20) & 0x3F
+        filename = "0x{0}.{1}".format(str(hex(filehash))[2:].zfill(8),\
+            tkid_vals[filetkid] if filetkid in tkid_vals else hex(filetkid))
+        if cmp_flag == 0:
             unc_data = f.read(unc_size)
         else:
             unc_data = bytearray(unc_size)
             unc_offset = 0
             while unc_offset < unc_size:
-                if flags & 0x100000: # FETH Mode
+                if cmp_flag == 1: # FETH Mode
                     zsize, = struct.unpack("<I", f.read(4))
-                else:
+                elif cmp_flag == 4: # Standard Mode (e.g. Atelier Yumia, Nioh 3, etc)
                     zsize, unk0 = struct.unpack("<HQ", f.read(10))
+                else:
+                    print("Unknown compression type: {}  Please report!".format(cmp_flag))
+                    print("Skipping file {} in {}.".format(filename, fdata_filename))
+                    return(b'', f_metadata, filename)
                 data_chunk = zlib.decompress(f.read(zsize))
                 unc_data[unc_offset:unc_offset+len(data_chunk)] = data_chunk
                 unc_offset += len(data_chunk)
-        filename = "0x{0}.{1}".format(str(hex(filehash))[2:].zfill(8),\
-            tkid_vals[filetkid] if filetkid in tkid_vals else hex(filetkid))
         return(unc_data, f_metadata, filename)
 
 def create_empty_fdata ():
@@ -160,16 +182,22 @@ def append_rdx(new_fdata_list, rdx_file = 'root.rdx'):
         new_rdx = f.read()
         eof = f.tell()
         f.seek(0)
+        old_markers = []
         while f.tell() < eof:
-            marker, ff, fdata = struct.unpack("<2hI", f.read(8))
-        markers = []
+            marker, root_folder, sub_folder, fdata = struct.unpack("<H2BI", f.read(8))
+            old_markers.append(marker)
+        marker = max(old_markers)
+        new_markers = []
         for new_fdata in new_fdata_list:
             marker += 1
-            new_rdx += struct.pack("<2hI", marker, -1, new_fdata)
-            markers.append(marker)
+            new_rdx += struct.pack("<H2BI", marker, 0xFF, 0xFF, new_fdata)
+            new_markers.append(marker)
+        if marker >= 0x800 or len(old_markers + new_markers) > 0x800:
+            print("Warning!  There are more than 2048 .fdata files indexed in root.rdx!")
+            input("Some .fdata files may be skipped.  Press Enter to continue.")
         with open(rdx_file, 'wb') as f2:
             f2.write(new_rdx)
-        return(markers)
+        return(new_markers)
 
 def replace_files_in_rdb(rdb_file, idrk_struct):
     if not os.path.exists(rdb_file + '.original'):
@@ -177,15 +205,15 @@ def replace_files_in_rdb(rdb_file, idrk_struct):
     with open(rdb_file + '.original', 'rb') as f:
         f.seek(0,2)
         eof = f.tell()
-        f.seek(0,0)
-        new_rdb = bytearray()
-        new_rdb.extend(f.read(32)) # Header, seems safe to just copy because we are not *adding* files
+        f.seek(0xC,0)
+        new_rdb = bytearray(b'_DRK0000') + struct.pack("<I", 0x20) #Header size
+        new_rdb.extend(f.read(0x14)) # Header, seems safe to just copy because we are not *adding* files
         while f.tell() < eof:
             start = f.tell()
             magic = f.read(4)
             assert magic == b'IDRK'
             version, entry_size, string_size, file_size = struct.unpack("<I3Q", f.read(28))
-            entry_type, file_hash, ktid, flags = struct.unpack("<4I", f.read(16))
+            param_data_size, file_hash, ktid, flags = struct.unpack("<4I", f.read(16))
             if not (entry_size % 4 == 0):
                 aligned_size = entry_size + 4 - (entry_size % 4)
             else:
