@@ -50,7 +50,9 @@ def extract_files_from_file (file_filename, overwrite = False):
         if os.path.exists(filename) and (overwrite == False):
             if str(input("{} already exists! Overwrite? (y/N) ".format(filename))).lower()[0:1] == 'y':
                 overwrite = True
-        if (overwrite == True) or not os.path.exists(filename):
+        if len(filedata) == 0:
+            print("Extraction of {} failed, possibly unsupported compression type, please report.".format(filename))
+        elif (overwrite == True) or not os.path.exists(filename):
             open(filename, 'wb').write(filedata)
     except zlib.error as e:
         print("Extraction of {} failed! Skipping...".format(file_filename))
