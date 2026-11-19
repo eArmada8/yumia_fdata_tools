@@ -37,14 +37,15 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
     r_metadata = b''
     location_record = {'skip': True}
     with open(rdb_file, 'rb') as f:
-        f.seek(0,2)
-        eof = f.tell()
-        f.seek(0x20,0)
-        while f.tell() < eof:
+        magic = f.read(8)
+        assert magic == b'_DRK0000'
+        header_size, version, num_files, namefile_hash = struct.unpack("<4I", f.read(16))
+        file_folder = f.read(header_size - f.tell()).rstrip(b'\x00').decode()
+        for _ in range(num_files):
             start = f.tell()
-            magic = f.read(4)
-            assert magic == b'IDRK'
-            version, entry_size, payload_size, file_size = struct.unpack("<I3Q", f.read(28))
+            magic = f.read(8)
+            assert magic == b'IDRK0000'
+            entry_size, payload_size, file_size = struct.unpack("<3Q", f.read(24))
             param_data_size, file_hash, tkid, flags = struct.unpack("<4I", f.read(16))
             if not file_hash == target_filehash:
                 if not (entry_size % 4 == 0):
@@ -68,7 +69,7 @@ def find_file_metadata_in_rdb (target_filehash, rdb_file = 'root.rdb'):
                     location_record['loose_file'] = True if bits_set[3] else False
                     location_record['skip'] = False
                 break
-    return(param_data_size, tkid, payload_size, location_record, r_metadata)
+    return(param_data_size, tkid, payload_size, location_record, r_metadata, file_folder)
 
 def find_fdata_file (fdata_index, rdx_file = 'root.rdx'):
     with open(rdx_file, 'rb') as f:
@@ -86,9 +87,10 @@ def find_fdata_file (fdata_index, rdx_file = 'root.rdx'):
     else:
         return('0x{}.fdata'.format(str(hex(fdata_hash))[2:].zfill(8)))
 
-def find_file_metadata_in_fdata(fdata_filename, target_filehash, location_record):
+def find_file_metadata_in_fdata(fdata_filename, target_filehash, location_record, file_folder):
     offset = location_record['offset'] if location_record['loose_file'] == False else 0
-    fdata_files = glob.glob('**/{}'.format(fdata_filename), recursive = True)
+    fdata_files = glob.glob('{}**/{}'.format(file_folder if location_record['loose_file'] == True
+        else '', fdata_filename), recursive = True)
     if len(fdata_filename) > 0 and len(fdata_files) > 0:
         if len(fdata_files) > 1:
             print("More than one copy of container {} found!  Please select an option:".format(fdata_filename))
@@ -121,17 +123,18 @@ def find_file_metadata_in_fdata(fdata_filename, target_filehash, location_record
         f_metadata = f.read(entry_size - cmp_size - 0x30)
         return(f_metadata)
 
-def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
-    param_data_size, tkid, payload_size, location_record, r_metadata = find_file_metadata_in_rdb(target_filehash, rdb_file = rdb_file)
+def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx'):
+    param_data_size, tkid, payload_size, location_record, r_metadata, file_folder = find_file_metadata_in_rdb(
+        target_filehash, rdb_file = rdb_file)
     if location_record['skip'] == False and location_record['kind'] == 1:
         if location_record['loose_file'] == True:
-            fdata_file = os.path.join(file_folder, '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8)))
+            fdata_file = '0x{}.file'.format(str(hex(target_filehash))[2:].zfill(8))
         elif 'rdx_index' in location_record:
             fdata_file = find_fdata_file (location_record['rdx_index'], rdx_file = rdx_file)
         else:
             print("Warning! Skipping file, unknown locator format: {}".format(location_record))
             return({})
-        f_metadata = find_file_metadata_in_fdata(fdata_file, target_filehash, location_record)
+        f_metadata = find_file_metadata_in_fdata(fdata_file, target_filehash, location_record, file_folder)
         if len(f_metadata) == 0:
             print("Metadata not found for target hash {}!".format(hex(target_filehash)))
             return({})
@@ -143,8 +146,8 @@ def find_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.
         print("Metadata not found for target hash {} due to missing / incompatible root.rdb entry!".format(hex(target_filehash)))
         return({})
 
-def retrieve_file_metadata(target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
-    metadata = find_file_metadata(target_filehash, rdb_file = rdb_file, rdx_file = rdx_file, file_folder = file_folder)
+def retrieve_file_metadata (target_filehash, rdb_file = 'root.rdb', rdx_file = 'root.rdx'):
+    metadata = find_file_metadata(target_filehash, rdb_file = rdb_file, rdx_file = rdx_file)
     if len(metadata) > 0:
         with open('{}.file_metadata.json'.format(str(hex(target_filehash))[2:].zfill(8)), 'wb') as f:
             f.write(json.dumps(metadata, indent = 4).encode())

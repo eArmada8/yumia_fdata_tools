@@ -14,11 +14,11 @@ except ModuleNotFoundError as e:
     input("Press Enter to abort.")
     raise
 
-def update_mod_json (mod_json_filename, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
+def update_mod_json (mod_json_filename, rdb_file = 'root.rdb', rdx_file = 'root.rdx'):
     mod_data = json.loads(open(mod_json_filename, 'rb').read())
     for i in range(len(mod_data['files'])):
         mod_data['files'][i].update(find_file_metadata(mod_data['files'][i]['name_hash'],\
-            rdb_file = rdb_file, rdx_file = rdx_file, file_folder = file_folder))
+            rdb_file = rdb_file, rdx_file = rdx_file))
     with open(mod_json_filename, 'wb') as f:
         f.write(json.dumps(mod_data, indent = 4).encode())
     return
@@ -40,9 +40,9 @@ def update_mod_fdata (fdata_filename):
     write_fdata(fdata, mod_data['fdata_hash'])
     return
 
-def update_mod (mod_json_filename, rdb_file = 'root.rdb', rdx_file = 'root.rdx', file_folder = 'data'):
+def update_mod (mod_json_filename, rdb_file = 'root.rdb', rdx_file = 'root.rdx'):
     if os.path.exists(mod_json_filename):
-        update_mod_json(mod_json_filename, rdb_file = rdb_file, rdx_file = rdx_file, file_folder = file_folder)
+        update_mod_json(mod_json_filename, rdb_file = rdb_file, rdx_file = rdx_file)
         fdata_filename = mod_json_filename.split('.yumiamod.json')[0] + '.fdata'
         if os.path.exists(fdata_filename):
             update_mod_fdata(fdata_filename)
