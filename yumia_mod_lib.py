@@ -17,17 +17,17 @@ def read_decode_mod_json (mod_json_filename):
         mod_data['files'][i]['r_extradata'] = base64.b64decode(mod_data['files'][i]['r_extradata'])
     return(mod_data)
 
-def create_fdata_idrk (filedata, file_metadata):
-    filesize = len(filedata)
+def create_fdata_idrk (cmp_data, unc_size, file_metadata, cmp_flag = 0):
+    cmp_size = len(cmp_data)
     param_block_size = len(file_metadata['f_extradata'])
-    payload = file_metadata['f_extradata'][4:] + filedata
+    payload = file_metadata['f_extradata'][4:] + cmp_data
     param_count, = struct.unpack("<I", file_metadata['f_extradata'][4:8])
     param_data_size = param_block_size - (12 * param_count + 8)
     idrk = bytearray()
     idrk.extend(b'IDRK0000')
-    idrk.extend(struct.pack("<3Q", 0x30 + param_block_size + filesize, filesize, filesize))
-    idrk.extend(struct.pack("<4I", param_data_size, file_metadata['name_hash'], file_metadata['tkid_hash'], 0))
-    idrk.extend(struct.pack("<I", zlib.crc32(filedata)))
+    idrk.extend(struct.pack("<3Q", 0x30 + param_block_size + cmp_size, cmp_size, unc_size))
+    idrk.extend(struct.pack("<4I", param_data_size, file_metadata['name_hash'], file_metadata['tkid_hash'], cmp_flag << 20))
+    idrk.extend(struct.pack("<I", zlib.crc32(cmp_data)))
     idrk.extend(payload)
     return(idrk)
 
@@ -160,8 +160,57 @@ def create_empty_fdata ():
     fdata = b'PDRK0000' + struct.pack("<2I", 0x10, 0x10)
     return (fdata)
 
-def append_to_fdata (fdata, filedata, file_metadata):
-    idrk = create_fdata_idrk (filedata, file_metadata)
+# zchunk_checksum() written by Claude AI
+def zchunk_checksum (data):
+    seeds = struct.unpack('<32Q', bytes.fromhex(
+    "d0976d0204710db3f564b89d4faf15d97786d3ff495737578ee2066fa7a26a5a"
+    "40f55496ed8b85ef33571d405a987947faf12fa86af7682d0a96a7ff5666ff73"
+    "4321221e77914caaf3c8bb18416f2111aad75d6c1cb92c555c09be2a6057c0bd"
+    "a4c6a44026d4afa6850c498e70fa2475243f03ea4ee28750dbdffe2179647ecd"
+    "9741fac8fa38997d0ddf42cf383bcba649c292e87ceac0f0a58c0bc297f25fa1"
+    "151c5bab14000fa0305490a7d7d98ea68e06903172b6ccf4ec4df696897f8d9a"
+    "836926573a207a855ca7ba81dbe1a87eee0fd5be99dbf9e0a7d905e50990cb96"
+    "7d870d7e3ed1e7841fb57880caaab3b1acdfc5ebe8e864aae98391f1fa3986e7"))
+    u64 = lambda b, o: struct.unpack_from('<Q', b, o)[0]
+    n = len(data)
+    seed = seeds[n & 31]
+    if n < 16:
+        length = n & ~7 # 0 or 8
+        if n < 8:
+            start = n ^ seed # huge → reset below → result is just seed
+        else:
+            start = (seed ^ u64(data, 0)) % n
+    else:
+        v = (seed ^ u64(data, 8)) & 31 # only the low 5 bits matter
+        length = (v if v < n else n) & ~7 # 0, 8, 16 or 24
+        start  = (seed ^ u64(data, 0)) % n
+    start &= ~7
+    if start + length > n:
+        start = 0
+    h = seed
+    for i in range(start, start + length, 8):
+        h = (h + u64(data, i)) % (2**64)
+    return h
+
+def compress_data (filedata, cmp_flag = 0):
+    if cmp_flag in [1,4]:
+        chunks = [filedata[i : i + 0x4000] for i in range(0, len(filedata), 0x4000)]
+        cmp_data = bytearray()
+        for i in range(len(chunks)):
+            cmp_chunk = zlib.compress(chunks[i])
+            if cmp_flag == 1:
+                cmp_data.extend(struct.pack("<I", len(cmp_chunk)))
+            elif cmp_flag == 4:
+                cmp_data.extend(struct.pack("<HQ", len(cmp_chunk), zchunk_checksum(cmp_chunk)))
+            cmp_data.extend(cmp_chunk)
+        cmp_data.extend(struct.pack("<I" if cmp_flag == 1 else "<H", 0)) # Termination chunk
+    else: # Default to zero compression if 0 or an unsupported cmp_flag is given
+        cmp_data, cmp_flag = filedata, 0
+    return cmp_data, cmp_flag
+
+def append_to_fdata (fdata, filedata, file_metadata, cmp_flag = 0):
+    cmp_data, cmp_flag = compress_data (filedata, cmp_flag)
+    idrk = create_fdata_idrk (cmp_data, len(filedata), file_metadata, cmp_flag)
     offset = len(fdata)
     if len(fdata) > 0x10:
         prior_data = bytearray(fdata)[0x10:]

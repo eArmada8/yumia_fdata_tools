@@ -12,7 +12,11 @@ try:
 except ModuleNotFoundError as e:
     print("Python module missing! {}".format(e.msg))
     input("Press Enter to abort.")
-    raise   
+    raise
+
+# Set to 0 for uncompressed, 1 for FETH compression, and 4 for standard compression (e.g. Atelier Yumia)
+cmp_flag = 0
+compress_tiny_files = False # Default is False, and only files > 0x4000 bytes are compressed
 
 if __name__ == "__main__":
     # Set current directory
@@ -27,5 +31,6 @@ if __name__ == "__main__":
         fdata = create_empty_fdata()
         for i in range(len(mod_data['files'])):
             filedata = open(mod_data['files'][i]['filename'],'rb').read()
-            fdata = append_to_fdata(fdata, filedata, mod_data['files'][i])
+            cmp_flag_i = cmp_flag if (compress_tiny_files or len(filedata) > 0x4000) else 0
+            fdata = append_to_fdata(fdata, filedata, mod_data['files'][i], cmp_flag_i)
         write_fdata(fdata, mod_data['fdata_hash'])

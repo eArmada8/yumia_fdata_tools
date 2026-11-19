@@ -30,6 +30,8 @@ Once complete, it will output your .yumiamod.json file, which in the example wou
 ### yumia_mod_write_fdata_files.py
 This script will take the mod files and the .yumiamod.json file, and write an .fdata file containing the files listed in the .yumiamod.json file.  Following the example above, place `0x88888888.yumiamod.json` and `0xA34C62FC.g1m` in the folder with the script and run it.  It will write out your `0x88888888.fdata` file.
 
+As provided, the script defaults to no compression, which is accepted by Atelier Yumia (and probably all other games).  Standard compression (mode 4) and the Fire Emblem Three Houses compression (mode 1) are also supported.  Edit the script and set the `cmp_flag` variable to the mode desired.  Any value other than 0, 1, or 4 will result in uncompressed streams.
+
 *Note:* Please consider including your .yumiamod.json file with your mod when sharing it.  This will allow end users to combine multiple mods together using `yumia_mod_insert_into_rdb.py`.
 
 ### yumia_mod_insert_into_rdb.py
