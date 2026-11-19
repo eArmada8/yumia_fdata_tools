@@ -80,7 +80,7 @@ def read_fdata_for_idrk_information (fdata_filename):
                     magic = f.read(8)
             entry_size, cmp_size, unc_size = struct.unpack("<3Q", f.read(24))
             param_data_size, name_hash, tkid_hash, flags = struct.unpack("<4I", f.read(16))
-            idrk_entries.append({'offset': fdata_offset, 'name_tkid': (name_hash, tkid_hash)})
+            idrk_entries.append({'offset': fdata_offset, 'name_tkid': (name_hash, tkid_hash), 'flags': flags})
             entry_end = fdata_offset + entry_size
             if entry_end % 0x10:
                 entry_end += (0x10 - entry_end % 0x10)
@@ -232,13 +232,18 @@ def append_rdx(new_fdata_list, rdx_file = 'root.rdx'):
         eof = f.tell()
         f.seek(0)
         old_markers = []
+        old_fdata_files = []
         while f.tell() < eof:
             marker, root_folder, sub_folder, fdata = struct.unpack("<H2BI", f.read(8))
             old_markers.append(marker)
+            old_fdata_files.append(fdata)
         marker = max(old_markers)
         new_markers = []
         for new_fdata in new_fdata_list:
             marker += 1
+            if new_fdata in old_fdata_files:
+                print("Warning! {} already exists in the original root.rdx!".format(hex(new_fdata)))
+                print("Unless every file in the original {} exists in the new version, the game will crash.".format(hex(new_fdata)))
             new_rdx += struct.pack("<H2BI", marker, 0xFF, 0xFF, new_fdata)
             new_markers.append(marker)
         if marker >= 0x800 or len(old_markers + new_markers) > 0x800:

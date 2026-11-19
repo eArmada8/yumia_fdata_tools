@@ -28,12 +28,13 @@ def update_mod_fdata (fdata_filename):
     mod_filenames = {(x['name_hash'],x['tkid_hash']):x['filename'] for x in mod_data['files']}
     fdata_files = read_fdata_for_idrk_information(fdata_filename)
     fdata_offsets = {x['name_tkid']: x['offset'] for x in fdata_files}
+    fdata_cmp_flags = {x['name_tkid']: (x['flags'] >> 20) & 0x3F if 'flags' in x else 0 for x in fdata_files}
     fdata = create_empty_fdata()
     for i in range(len(mod_data['files'])):
         name_tkid = (mod_data['files'][i]['name_hash'], mod_data['files'][i]['tkid_hash'])
         if name_tkid in fdata_offsets:
             filedata, _, filename = read_fdata_file(fdata_filename, fdata_offsets[name_tkid])
-            fdata = append_to_fdata(fdata, filedata, mod_data['files'][i])
+            fdata = append_to_fdata(fdata, filedata, mod_data['files'][i], fdata_cmp_flags[name_tkid])
         else:
             input("Warning! {} missing from fdata file! Press Enter to continue".format(mod_data['files'][i]['filename']))
     write_fdata(fdata, mod_data['fdata_hash'])

@@ -28,7 +28,9 @@ def extract_files_from_fdata (fdata_filename, overwrite = False):
             if os.path.exists(filename) and (overwrite == False):
                 if str(input("Files to be extracted from {} already exist! Overwrite? (y/N) ".format(fdata_filename))).lower()[0:1] == 'y':
                     overwrite = True
-            if (overwrite == True) or not os.path.exists(filename):
+            if len(filedata) == 0:
+                print("Extraction of {} failed, possibly unsupported compression type, please report.".format(filename))
+            elif (overwrite == True) or not os.path.exists(filename):
                 open(filename, 'wb').write(filedata)
         except zlib.error as e:
             print("Extraction of {} in {} failed! Skipping...".format(fdata_files[i]['name_tkid'], fdata_filename))
