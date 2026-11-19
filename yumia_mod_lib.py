@@ -270,7 +270,7 @@ def append_rdx(new_fdata_list, rdx_file = 'root.rdx'):
             new_markers.append(marker)
         if marker >= 0x800 or len(old_markers + new_markers) > 0x800:
             print("Warning!  There are more than 2048 .fdata files indexed in root.rdx!")
-            input("Some .fdata files may be skipped.  Press Enter to continue.")
+            print("Some .fdata files may be skipped, depending on the game engine.")
         with open(rdx_file, 'wb') as f2:
             f2.write(new_rdx)
         return(new_markers)

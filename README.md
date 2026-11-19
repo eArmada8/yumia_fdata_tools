@@ -12,6 +12,7 @@ I used AI (Claude, attached to ghidra) as a debugger / decompiler to help me deb
 
 ## Requirements:
 1. Python 3.11 or newer is required for use of this script.  It is free from the Microsoft Store, for Windows users.  For Linux users, please consult your distro.
+2. The crytography for python is needed for encrypted fdata files.  Install by typing "python3 -m pip install crytography" in the command line / shell.  (The hashlib, json, base64, struct, shutil, zlib, os and sys modules are also required, but these are all already included in most basic python installations.)
 
 ## FData Tools - How to use
 
