@@ -278,6 +278,7 @@ def append_rdx(new_fdata_list, rdx_file = 'root.rdx'):
 def replace_files_in_rdb(rdb_file, idrk_struct):
     if not os.path.exists(rdb_file + '.original'):
         shutil.copy2(rdb_file, rdb_file + '.original')
+    files_replaced = []
     with open(rdb_file + '.original', 'rb') as f:
         f.seek(0,2)
         eof = f.tell()
@@ -299,8 +300,10 @@ def replace_files_in_rdb(rdb_file, idrk_struct):
                 new_rdb.extend(f.read(aligned_size))
             else:
                 new_rdb.extend(idrk_struct[file_hash])
+                files_replaced.append(file_hash)
                 f.seek(start + aligned_size)
         open(rdb_file, 'wb').write(new_rdb)
+    return files_replaced
 
 if __name__ == "__main__":
     pass
