@@ -21,6 +21,10 @@ I used AI (Claude, attached to ghidra) as a debugger / decompiler to help me deb
 ### yumia_mod_find_metadata.py
 In order to replace files in the game, the file's fdata and rdb metadata are needed.  Run this script in the `/Atelier Yumia/Motor/` folder and input the 8-digit hexadecimal code of the file you want to replace.  For example, if you want to modify Yumia's outfit `0xA34C62FC.g1m`, then type in `A34C62FC` without the `0x` and it will output `a34c62fc.file_metadata.json`.  (If you type the 0x, the script will also accept the value.)
 
+*NOTE:* If the hash provided is for a localized file (one with multiple versions dependent on language), then this script will ask you to choose which version you want to use, and will use the .lang files to find the correct file.  This has only been tested with Atelier Yumia; other games may store their language files differently.  If this does not work, you can just copy all the language files you want into the root directory.
+
+*NOTE:* This script will attempt to use the .original files if mods are already present.
+
 ### yumia_mod_write_yumiamod_json.py
 Once you have all your mod files and file_metadata.json files, put them in the folder and run this script.  It will first ask you for an 8-digit hexadecimal code for a new .fdata file - for example type `88888888` to create a `0x88888888.fdata` file.  (If you type the 0x, the script will also accept the value.)  Be sure to choose a filename that isn't already in use!
 
@@ -37,6 +41,8 @@ As provided, the script defaults to no compression, which is accepted by Atelier
 
 ### yumia_mod_insert_into_rdb.py
 This script will take all the .yumiamod.json files and their corresponding .fdata files, and insert them into `root.rdb` and `root.rdx`.  This is intended to be run inside `/Atelier Yumia/Motor/`.  Place all your .yumiamod.json and .fdata files with this script in `/Atelier Yumia/Motor/` and run.  If no backup exists, it will write a backup (`root.rdb.original` and `root.rdx.original`).  It will always start from the original backups, so that duplicate mods will not be inserted when run repeatedly.  After running this script, `root.rdb` and `root.rdx` will be updated and the mods will have been inserted into the game.
+
+*NOTE:* If a .yumiamod.json and .fdata file are used to replace a localized file (a file with multiple versions for different languages), then that file will be removed from the .lang files and will be used for *all* languages.
 
 Additionally, the script will write hash signatures of the *modded* `root.rdb` and `root.rdx` files so that it can use them in future executions to detect game updates.  If the game is updated, the script will detect that the files no longer match their signatures, and will prompt the user to replace `root.rdb.original` and `root.rdx.original` with the new updated versions.
 
