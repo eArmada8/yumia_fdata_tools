@@ -16,6 +16,8 @@ def parse_lang_files (lang_code):
     lang_files = glob.glob('*{}.lang'.format(lang_code))
     locators = {}
     for lang_file in lang_files:
+        # Use originals if they are available
+        lang_file = lang_file + '.original' if os.path.exists(lang_file + '.original') else lang_file
         with open(lang_file, 'rb') as f:
             f.seek(0,2)
             eof = f.tell()
